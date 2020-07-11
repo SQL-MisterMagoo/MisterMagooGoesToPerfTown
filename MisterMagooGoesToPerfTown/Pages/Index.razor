@@ -1,0 +1,92 @@
+﻿@page "/"
+
+<RenderStats Trigger="Trigger" InteropType="@TaskName()" />
+
+<div>
+    <button @onclick="StartFileJS" disabled="@Running">File Based JS</button>
+    <button @onclick="StartInlineJS" disabled="@Running">Inline Based JS</button>
+    <button @onclick="NoTask" disabled="@Running">None</button>
+    <label>Batch mode? </label><input type="checkbox" @bind="Batched" disabled="@Running" />
+    <label>Window width: @WindowWidth</label>
+</div>
+@code
+{
+    [Inject] IJSRuntime JSRuntime { get; set; }
+
+    bool Running;
+    bool Batched;
+    int Trigger;
+    int WindowWidth;
+    Task MainTask;
+    System.Threading.CancellationTokenSource tokenSource;
+    enum Tasks
+    {
+        None,
+        FileJS,
+        InlineJS,
+    }
+    Tasks TaskType = Tasks.None;
+    protected override void OnInitialized()
+    {
+    }
+    async Task StartFileJS()
+    {
+        TaskType = Tasks.FileJS;
+        await DoWork();
+    }
+    async Task StartInlineJS()
+    {
+        TaskType = Tasks.InlineJS;
+        await DoWork();
+    }
+    void NoTask()
+    {
+        TaskType = Tasks.None;
+    }
+    string TaskName() => Enum.GetName(typeof(Tasks), TaskType);
+    async Task DoWork()
+    {
+        Running = true;
+        await Task.Delay(1);
+        StateHasChanged();
+        Trigger = 0;
+        var End = DateTime.Now.AddSeconds(10);
+        while (DateTime.Now < End)
+        {
+            Trigger++;
+            switch (TaskType)
+            {
+                case Tasks.None:
+                    Running = false;
+                    return;
+                case Tasks.FileJS:
+                    var resultFile = await JSRuntime.InvokeAsync<object>("mystuff.getwidth");
+                    if (Double.TryParse(resultFile.ToString(), out double FileWindowWidth))
+                    {
+                        WindowWidth = (int)FileWindowWidth;
+                    }
+                    break;
+                case Tasks.InlineJS:
+                    var result = await JSRuntime.InvokeAsync<object>("eval", "window.visualViewport.width");
+                    if (Double.TryParse(result.ToString(), out double DblWindowWidth))
+                    {
+                        WindowWidth = (int)DblWindowWidth;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            if (Batched)
+            {
+                await Task.Delay(0);
+            }
+            else
+            {
+                await Task.Delay(1);
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        Running = false;
+
+    }
+}

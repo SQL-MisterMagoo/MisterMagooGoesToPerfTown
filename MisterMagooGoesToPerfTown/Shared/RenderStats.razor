@@ -1,0 +1,82 @@
+﻿<h3>RenderStats</h3>
+<div>
+    <style>
+        .render-stats {
+            display: flex;
+            flex-direction: column;
+            padding: 1em;
+            border: solid thin red;
+        }
+
+            .render-stats section {
+                display: flex;
+                padding: 1em;
+                border: solid thin gray;
+            }
+
+                .render-stats section label {
+                    display: flex;
+                    padding: 0.3em;
+                }
+    </style>
+    <div class="render-stats">
+        <section>
+            <label for="render-count">Render Count</label>
+            <label id="render-count">@RenderCount</label>
+        </section>
+        <section>
+            <label for="render-rate">Render Rate</label>
+            <label id="render-rate">@(RenderRate)/sec</label>
+        </section>
+        <section>
+            <label for="render-max">Max Render Rate</label>
+            <label id="render-max">@(MaxRate)/sec</label>
+        </section>
+        <section>
+            <label for="render-type">Interop Type</label>
+            <label id="render-type">@(InteropType)</label>
+        </section>
+        <section>
+            <label for="stopwatch">Stopwatch</label>
+            <label id="stopwatch">@(sw.Elapsed)</label>
+        </section>
+    </div>
+</div>
+@code {
+    string _interopType = "";
+    [Parameter] public int Trigger { get; set; }
+    [Parameter]
+    public string InteropType
+    {
+        get => _interopType;
+        set
+        {
+            if (!_interopType.Equals(value))
+            {
+                sw.Stop();
+                RenderCount = 0;
+                MaxRate = 0;
+                _interopType = value;
+                sw.Reset();
+                sw.Start();
+            }
+        }
+    }
+    int RenderCount;
+    int RenderRate;
+    int MaxRate;
+    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (sw.ElapsedMilliseconds > 0)
+        {
+            RenderRate = (int)Math.Round((RenderCount * 1000.0) / sw.ElapsedMilliseconds, 0);
+        }
+        MaxRate = Math.Max(MaxRate, RenderRate);
+        if (InteropType != "None")
+        {
+            RenderCount++;
+        }
+    }
+}
